@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Speed Test</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; }
+    body { margin: 0; background: #0b1020; color: #e6ecff; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 24px; }
+    .card { background:#0f1630; border:1px solid #223; border-radius:16px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    p.muted { color:#9fb0ff; margin-top:6px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top:18px; }
+    .tile { background:#0b132b; border:1px solid #1d2545; border-radius:12px; padding:16px; }
+    .label { color:#9fb0ff; font-size:13px; }
+    .value { font-weight:700; font-size: 28px; margin-top:6px; letter-spacing: 0.5px; }
+    .unit { font-size:14px; opacity:.8; margin-left:6px; font-weight:500; }
+    button { background:#3754ff; color:white; border:0; padding:12px 16px; border-radius:12px; font-weight:600; cursor:pointer; }
+    button:disabled{ opacity:.6; cursor:not-allowed; }
+    .row { display:flex; gap:12px; align-items:center; margin-top:16px; flex-wrap:wrap; }
+    input[type="number"]{ width:90px; padding:8px; border-radius:10px; border:1px solid #334; background:#0b132b; color:#e6ecff; }
+    code { background:#0b132b; border:1px solid #1d2545; padding:4px 6px; border-radius:6px; }
+    .log { white-space: pre-line; background:#0b132b; border:1px dashed #2a356b; border-radius:12px; padding:12px; margin-top:12px; font-size:13px; color:#c7d2ff; max-height:220px; overflow:auto; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>Speed Test</h1>
+    <p class="muted">Measures <strong>ping</strong>, <strong>download</strong>, and <strong>upload</strong> between this browser and your server.
+      Backend endpoints: <code>/speedtest/api/ping</code>, <code>/speedtest/api/download</code>, <code>/speedtest/api/upload</code>.</p>
+
+    <div class="row">
+      <button id="runBtn">Run test</button>
+      <button id="stopBtn" disabled>Stop</button>
+      <span class="muted">
+        Parallel: <input type="number" id="parallel" value="1" min="1" max="4">
+        Download size (MB): <input type="number" id="downMb" value="20" min="1" max="50">
+        Upload size (MB): <input type="number" id="upMb" value="10" min="1" max="50">
+      </span>
+    </div>
+
+    <div class="grid">
+      <div class="tile">
+        <div class="label">Ping (RTT)</div>
+        <div class="value"><span id="ping">—</span><span class="unit">ms</span></div>
+      </div>
+      <div class="tile">
+        <div class="label">Download</div>
+        <div class="value"><span id="down">—</span><span class="unit">Mbps</span></div>
+      </div>
+      <div class="tile">
+        <div class="label">Upload</div>
+        <div class="value"><span id="up">—</span><span class="unit">Mbps</span></div>
+      </div>
+    </div>
+
+    <div class="log" id="log"></div>
+  </div>
+</div>
+<script>
+(function(){
+  const el = (id)=>document.getElementById(id);
+  const pingEl = el('ping'), downEl = el('down'), upEl = el('up');
+  const logEl = el('log');
+  const runBtn = el('runBtn');
+  const stopBtn = el('stopBtn');
+  const controller = { abortCtrl: null, stopped: false };
+
+  function log(msg){ logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+  function fmtMbps(bytes, ms){ return ((bytes * 8) / (ms / 1000) / 1e6).toFixed(2); }
+  function fmtBytes(b){
+    if (b < 1024) return `${b} B`;
+    if (b < 1024*1024) return `${(b/1024).toFixed(1)} KiB`;
+    return `${(b/1024/1024).toFixed(1)} MiB`;
+  }
+
+  // Safe random filler (works around 65536-byte limit)
+  function fillRandom(buf) {
+    const CHUNK = 65536;
+    for (let i = 0; i < buf.length; i += CHUNK) {
+      crypto.getRandomValues(buf.subarray(i, Math.min(i + CHUNK, buf.length)));
+    }
+  }
+
+  async function ping(){
+    const url = `/speedtest/api/ping?_=${Date.now()}`;
+    const t0 = performance.now();
+    await fetch(url, { cache: 'no-store' });
+    const t1 = performance.now();
+    const rtt = Math.max(0, t1 - t0);
+    pingEl.textContent = rtt.toFixed(1);
+    log(`Ping: ${rtt.toFixed(1)} ms`);
+    return rtt;
+  }
+
+  async function downloadTest(parallel, mb){
+    const size = Math.max(1, +mb) * 1024 * 1024; // bytes per stream
+    const q = `size=${size}&_=${Math.random()}`;
+
+    let bytesTotal = 0;
+    const t0 = performance.now();
+
+    const tasks = Array.from({length: Math.max(1, +parallel)}, () => (async()=>{
+      const resp = await fetch(`/speedtest/api/download?${q}`, { signal: controller.abortCtrl.signal, cache: 'no-store' });
+      const reader = resp.body.getReader();
+      while(true){
+        const {value, done} = await reader.read();
+        if(done) break;
+        bytesTotal += value.byteLength;
+      }
+    })());
+
+    await Promise.all(tasks);
+    const t1 = performance.now();
+    const mbps = fmtMbps(bytesTotal, t1 - t0);
+    downEl.textContent = mbps;
+    log(`Download: ${mbps} Mbps (parallel=${parallel}, bytes≈${fmtBytes(bytesTotal)})`);
+    return +mbps;
+  }
+
+  async function uploadTest(parallel, mb){
+    const size = Math.max(1, +mb) * 1024 * 1024; // bytes per stream
+
+    let bytesTotal = 0;
+    const t0 = performance.now();
+
+    const tasks = Array.from({length: Math.max(1, +parallel)}, () => (async()=>{
+      const payload = new Uint8Array(size);
+      fillRandom(payload); // safe fill
+      const resp = await fetch(`/speedtest/api/upload?_=${Math.random()}`, {
+        method: 'POST',
+        body: payload,
+        signal: controller.abortCtrl.signal,
+        cache: 'no-store'
+      });
+      if(!resp.ok && resp.status !== 204) throw new Error('Upload failed');
+      bytesTotal += size;
+    })());
+
+    await Promise.all(tasks);
+    const t1 = performance.now();
+    const mbps = fmtMbps(bytesTotal, t1 - t0);
+    upEl.textContent = mbps;
+    log(`Upload: ${mbps} Mbps (parallel=${parallel}, bytes≈${fmtBytes(bytesTotal)})`);
+    return +mbps;
+  }
+
+  async function run(){
+    controller.stopped = false;
+    controller.abortCtrl = new AbortController();
+    runBtn.disabled = true; stopBtn.disabled = false; logEl.textContent = '';
+
+    try{
+      await ping();
+      const parallel = +el('parallel').value;
+      const dMb = +el('downMb').value;
+      const uMb = +el('upMb').value;
+      await downloadTest(parallel, dMb);
+      if(controller.stopped) return;
+      await uploadTest(parallel, uMb);
+    }catch(err){
+      log('ERROR: ' + (err?.message || err));
+    }finally{
+      runBtn.disabled = false; stopBtn.disabled = true;
+      controller.abortCtrl = null;
+    }
+  }
+
+  runBtn.addEventListener('click', run);
+  stopBtn.addEventListener('click', ()=>{
+    controller.stopped = true;
+    if(controller.abortCtrl) controller.abortCtrl.abort();
+    stopBtn.disabled = true; runBtn.disabled = false;
+    log('Test stopped.');
+  });
+})();
+</script>
+</body>
+</html>
