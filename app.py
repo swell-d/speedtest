@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask, Response, request, send_file
+from flask import Flask, Response, request, send_file, jsonify
 
 app = Flask(__name__)
 
@@ -15,6 +15,11 @@ def add_headers(resp):
     resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return resp
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify(status='ok'), 200
 
 
 @app.route('/speedtest/', methods=['GET'])
