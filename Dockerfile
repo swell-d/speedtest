@@ -12,7 +12,8 @@ USER appuser
 
 WORKDIR /app
 RUN git clone --depth=1 https://github.com/swell-d/speedtest.git /app
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m venv venv && . /app/venv/bin/activate && pip install --no-cache-dir -r requirements.txt
+ENV PATH="/app/venv/bin:${PATH}"
 
 EXPOSE 8085
 CMD ["gunicorn", "--bind", "0.0.0.0:8085", "--workers", "1", "--threads", "8", "--timeout", "300", "app:app"]
