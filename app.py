@@ -69,5 +69,5 @@ def upload():
 
 
 @app.route('/speedtest/api/health', methods=['GET'])
-def health():
+def api_health():
     return {'status': 'ok'}, 200
