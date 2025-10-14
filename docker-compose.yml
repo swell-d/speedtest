@@ -1,7 +1,1 @@
-services:
-  speedtest:
-    build: .
-    container_name: speedtest
-    restart: unless-stopped
-    ports:
-      - "8085:8085"
+
