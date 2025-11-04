@@ -1,1 +1,24 @@
-
+services:
+  speedtest:
+    user: "appuser"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: speedtest:latest
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://127.0.0.1:8085/health || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
