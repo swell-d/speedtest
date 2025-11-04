@@ -4,9 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git curl && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
 RUN useradd -m -u 1000 appuser
 USER appuser
 
