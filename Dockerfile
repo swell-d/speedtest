@@ -12,8 +12,7 @@ RUN git clone --depth=1 https://github.com/swell-d/speedtest.git /app
 RUN python -m venv venv && . /app/venv/bin/activate && pip install --no-cache-dir -r requirements.txt
 ENV PATH="/app/venv/bin:${PATH}"
 
-RUN python -m compileall -b -f -q /app
-RUN find /app -name "*.py" -delete
+RUN python -m compileall -b -f -q /app && find /app -name "*.py" -delete
 
 EXPOSE 8085
 CMD ["gunicorn", "--bind", "0.0.0.0:8085", "--workers", "1", "--threads", "8", "--timeout", "300", "app:app"]
