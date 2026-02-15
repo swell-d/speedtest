@@ -9,8 +9,8 @@ USER appuser
 
 WORKDIR /app
 RUN git clone --depth=1 https://github.com/swell-d/speedtest.git /app
-RUN python -m venv venv && . /app/venv/bin/activate && pip install --no-cache-dir -r requirements.txt
-ENV PATH="/app/venv/bin:${PATH}"
+RUN pip install --no-cache-dir -r requirements.txt
+ENV PATH="/home/appuser/.local/bin:$PATH"
 
 RUN python -m compileall -b -f -q /app && find /app -name "*.py" -delete
 
