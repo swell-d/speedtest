@@ -8,7 +8,7 @@ RUN useradd -m -u 1000 appuser
 USER appuser
 
 WORKDIR /app
-RUN git clone --depth=1 https://github.com/swell-d/speedtest.git /app
+RUN git clone --depth=1 https://github.com/swell-d/speedtest.git /app && rm -rf /app/.git
 RUN pip install --no-cache-dir flask gunicorn
 ENV PATH="/home/appuser/.local/bin:$PATH"
 
