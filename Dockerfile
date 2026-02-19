@@ -15,4 +15,4 @@ ENV PATH="/home/appuser/.local/bin:$PATH"
 RUN python -m compileall -b -f -q /app && find /app -name "*.py" -delete
 
 EXPOSE 8085
-CMD ["gunicorn", "--bind", "0.0.0.0:8085", "--workers", "1", "--threads", "8", "--timeout", "300", "app:app"]
+CMD ["gunicorn", "--no-control-socket", "--bind", "0.0.0.0:8085", "--workers", "1", "--threads", "8", "--timeout", "300", "app:app"]
