@@ -1,14 +1,16 @@
 FROM python:3.13-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates git curl && \
+    ca-certificates curl && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1000 appuser
 USER appuser
 
 WORKDIR /app
-RUN git clone --depth=1 https://github.com/swell-d/speedtest.git /app && rm -rf /app/.git
+RUN curl -fsSL -o /app/app.py         https://raw.githubusercontent.com/swell-d/speedtest/refs/heads/main/app.py \
+               -o /app/speedtest.html https://raw.githubusercontent.com/swell-d/speedtest/refs/heads/main/speedtest.html
+
 RUN pip install --no-cache-dir flask gunicorn
 ENV PATH="/home/appuser/.local/bin:$PATH"
 
