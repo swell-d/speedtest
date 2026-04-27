@@ -7,12 +7,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN useradd -m -u 1000 appuser
 USER appuser
 
+RUN pip install --no-cache-dir flask gunicorn
+ENV PATH="/home/appuser/.local/bin:$PATH"
+
 WORKDIR /app
 RUN curl -fsSL -o /app/app.py         https://raw.githubusercontent.com/swell-d/speedtest/refs/heads/main/app.py \
                -o /app/speedtest.html https://raw.githubusercontent.com/swell-d/speedtest/refs/heads/main/speedtest.html
-
-RUN pip install --no-cache-dir flask gunicorn
-ENV PATH="/home/appuser/.local/bin:$PATH"
 
 RUN python -m compileall -b -f -q /app && find /app -name "*.py" -delete
 
